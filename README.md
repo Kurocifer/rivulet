@@ -1,2 +1,2 @@
 # rivulet
-A distributed file storage system
+A decentralized and fully distributed content-addressable file storage system
