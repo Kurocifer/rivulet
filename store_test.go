@@ -40,6 +40,10 @@ func TestStore(t *testing.T) {
 		t.Error(err)
 	}
 
+	if ok := s.Has(key); !ok {
+		t.Errorf("expected to have key %s", key)
+	}
+
 	// test read
 	r, err := s.Read(key)
 	if err != nil {
@@ -52,6 +56,7 @@ func TestStore(t *testing.T) {
 	}
 
 	assert.Equal(t, data, b)
+	s.Delete(key)
 }
 
 func TestStoreDelete(t *testing.T) {
