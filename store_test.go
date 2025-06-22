@@ -8,7 +8,13 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-var key = "SoulSoceity"
+var (
+	key         = "SoulSoceity"
+	fileContent = "Zanka no Tachi"
+	opts        = StoreOpts{
+		PathTransformFunc: CASPathTransformFunc,
+	}
+)
 
 func TestPathTransformFunc(t *testing.T) {
 	expectedPath := "84647/b2184/badb9/331c9/ec324/5ec5f/aebce/3c140"
@@ -26,11 +32,6 @@ func TestPathTransformFunc(t *testing.T) {
 }
 
 func TestStore(t *testing.T) {
-	fileContent := "Zanka no Tachi"
-	opts := StoreOpts{
-		PathTransformFunc: CASPathTransformFunc,
-	}
-
 	s := NewStore(opts)
 
 	// test write
@@ -51,4 +52,17 @@ func TestStore(t *testing.T) {
 	}
 
 	assert.Equal(t, data, b)
+}
+
+func TestStoreDelete(t *testing.T) {
+	s := NewStore(opts)
+	data := []byte(fileContent)
+
+	if err := s.writeStream(key, bytes.NewReader(data)); err != nil {
+		t.Error(err)
+	}
+
+	if err := s.Delete(key); err != nil {
+		t.Error(err)
+	}
 }

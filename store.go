@@ -63,6 +63,25 @@ func NewStore(opts StoreOpts) *Store {
 	}
 }
 
+// func (s *Store) Has(key string) bool {
+// 	pathKey
+// }
+
+func (s *Store) Delete(key string) error {
+	pathKey := s.PathTransformFunc(key)
+
+	topDir := strings.Split(pathKey.FullPath(), "/")[0]
+	if len(topDir) == 0 {
+		return fmt.Errorf("top directory doesn't exist (I actually don't know what to say in this error)")
+	}
+	if err := os.RemoveAll(topDir); err != nil {
+		return err
+	}
+
+	fmt.Printf("deleted [%s] from disk\n", pathKey.Filename)
+	return nil
+}
+
 func (s Store) Read(key string) (io.Reader, error) {
 	f, err := s.readStream(key)
 	if err != nil {
