@@ -16,9 +16,15 @@ var (
 	}
 )
 
+func teadDown(t *testing.T, s *Store) {
+	if err := s.Clear(); err != nil {
+		t.Error(err)
+	}
+}
+
 func TestPathTransformFunc(t *testing.T) {
 	expectedPath := "84647/b2184/badb9/331c9/ec324/5ec5f/aebce/3c140"
-	expectedOriginal := "84647b2184badb9331c9ec3245ec5faebce3c140"
+	expectedFilename := "84647b2184badb9331c9ec3245ec5faebce3c140"
 
 	pathKey := CASPathTransformFunc(key)
 
@@ -26,13 +32,27 @@ func TestPathTransformFunc(t *testing.T) {
 		t.Errorf("have %s want %s", pathKey.Path, expectedPath)
 	}
 
-	if pathKey.Filename != expectedOriginal {
-		t.Errorf("test 1have %s want %s", pathKey.Filename, expectedOriginal)
+	if pathKey.Filename != expectedFilename {
+		t.Errorf("test 1have %s want %s", pathKey.Filename, expectedFilename)
+	}
+}
+
+func TestStoreDelete(t *testing.T) {
+	s := NewStore(opts)
+	data := []byte(fileContent)
+
+	if err := s.writeStream(key, bytes.NewReader(data)); err != nil {
+		t.Error(err)
+	}
+
+	if err := s.Delete(key); err != nil {
+		t.Error(err)
 	}
 }
 
 func TestStore(t *testing.T) {
 	s := NewStore(opts)
+	defer teadDown(t, s)
 
 	// test write
 	data := []byte(fileContent)
@@ -56,18 +76,4 @@ func TestStore(t *testing.T) {
 	}
 
 	assert.Equal(t, data, b)
-	s.Delete(key)
-}
-
-func TestStoreDelete(t *testing.T) {
-	s := NewStore(opts)
-	data := []byte(fileContent)
-
-	if err := s.writeStream(key, bytes.NewReader(data)); err != nil {
-		t.Error(err)
-	}
-
-	if err := s.Delete(key); err != nil {
-		t.Error(err)
-	}
 }

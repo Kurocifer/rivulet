@@ -32,6 +32,27 @@ var DefaultPathTransformFunc = func(key string) PathKey {
 	}
 }
 
+// CASPathTransformFunc takes a key descriptor for a file,
+// and returns it's path on disk. (I should probably come up with a better name)
+func CASPathTransformFunc(key string) PathKey {
+	hash := sha1.Sum([]byte(key))
+	hashStr := hex.EncodeToString(hash[:])
+
+	blockSize := 5                       // determines the level of embedding of the path (the number of subdirectores)
+	sliceLen := len(hashStr) / blockSize // So a hashStr len of 10, will yeild 2 sub directores
+	path := make([]string, sliceLen)
+
+	for i := range sliceLen {
+		start, end := i*blockSize, (i*blockSize)+blockSize
+		path[i] = hashStr[start:end]
+	}
+
+	return PathKey{
+		Path:     strings.Join(path, "/"),
+		Filename: hashStr,
+	}
+}
+
 type StoreOpts struct {
 	// Root is the root directory of the system
 	Root              string
@@ -55,25 +76,8 @@ func NewStore(opts StoreOpts) *Store {
 	}
 }
 
-// CASPathTransformFunc takes a key descriptor for a file,
-// and returns it's path on disk. (I should probably come up with a better name)
-func CASPathTransformFunc(key string) PathKey {
-	hash := sha1.Sum([]byte(key))
-	hashStr := hex.EncodeToString(hash[:])
-
-	blockSize := 5                       // determines the level of embedding of the path (the number of subdirectores)
-	sliceLen := len(hashStr) / blockSize // So a hashStr len of 10, will yeild 2 sub directores
-	path := make([]string, sliceLen)
-
-	for i := range sliceLen {
-		start, end := i*blockSize, (i*blockSize)+blockSize
-		path[i] = hashStr[start:end]
-	}
-
-	return PathKey{
-		Path:     strings.Join(path, "/"),
-		Filename: hashStr,
-	}
+func (s *Store) Clear() error {
+	return os.RemoveAll(s.Root)
 }
 
 func (s *Store) Has(key string) bool {
@@ -86,7 +90,7 @@ func (s *Store) Has(key string) bool {
 func (s *Store) Delete(key string) error {
 	pathKey := s.PathTransformFunc(key)
 
-	topDir := strings.Split(pathKey.FullPath(s.Root), "/")[:1]
+	topDir := strings.Split(pathKey.FullPath(s.Root), "/")[:2]
 	if len(topDir) == 0 {
 		return fmt.Errorf("top directory doesn't exist (I actually don't know what to say in this error)")
 	}
