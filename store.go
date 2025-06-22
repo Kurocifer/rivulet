@@ -102,6 +102,10 @@ func (s *Store) Delete(key string) error {
 	return nil
 }
 
+func (s *Store) Write(key string, r io.Reader) error {
+	return s.writeStream(key, r)
+}
+
 func (s Store) Read(key string) (io.Reader, error) {
 	f, err := s.readStream(key)
 	if err != nil {
