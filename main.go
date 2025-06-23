@@ -1,37 +1,49 @@
 package main
 
 import (
-	"fmt"
 	"log"
 
 	"github.com/kurocifer/rivulet/p2p"
 )
 
 func main() {
-	tcpTransportOpts := p2p.TCPTransportOpts{
-		ListenAddr:    ":8080",
-		Decoder:       p2p.DefaultDecoder{},
-		HandShakeFunc: p2p.DefaultHandSake,
-		OnPeer:        onPeer,
-	}
-	tr := p2p.NewTCPTransport(tcpTransportOpts)
+
+	s1 := makeServer(":3000")
+	s2 := makeServer(":4000", ":3000")
 
 	go func() {
-		for {
-			msg := <-tr.Consume()
-			fmt.Printf("%+v\n", msg)
-		}
+		log.Fatal(s1.Start())
 	}()
 
-	if err := tr.ListenAndAccept(); err != nil {
+	if err := s2.Start(); err != nil {
 		log.Fatal(err)
 	}
-
-	select {}
 }
 
-func onPeer(peer p2p.Peer) error {
-	fmt.Println("What am I even doing ??????")
-	peer.Close()
-	return nil
+// func onPeer(peer p2p.Peer) error {
+// 	fmt.Println("What am I even doing ??????")
+// 	peer.Close()
+// 	return nil
+// }
+
+func makeServer(listenerAddr string, nodes ...string) *FileServer {
+	tcpTransportOpts := p2p.TCPTransportOpts{
+		ListenAddr:    listenerAddr,
+		Decoder:       p2p.DefaultDecoder{},
+		HandShakeFunc: p2p.DefaultHandSake,
+	}
+	tcpTransport := p2p.NewTCPTransport(tcpTransportOpts)
+
+	fileServerOpts := FileServerOPts{
+		StoreageRoot:      "rivulet",
+		PathTransformFunc: CASPathTransformFunc,
+		Transport:         tcpTransport,
+		BootstrapNodes:    nodes,
+	}
+
+	server := NewFileServer(fileServerOpts)
+
+	tcpTransport.OnPeer = server.onPeer
+
+	return server
 }

@@ -24,7 +24,6 @@ func (dec DefaultDecoder) Decode(r io.Reader, msg *RPC) error {
 	if err != nil {
 		return err
 	}
-
 	msg.Payload = buf[:n]
 	return nil
 }
