@@ -41,7 +41,7 @@ func TestStoreDelete(t *testing.T) {
 	s := NewStore(opts)
 	data := []byte(fileContent)
 
-	if err := s.writeStream(key, bytes.NewReader(data)); err != nil {
+	if _, err := s.writeStream(key, bytes.NewReader(data)); err != nil {
 		t.Error(err)
 	}
 
@@ -56,7 +56,7 @@ func TestStore(t *testing.T) {
 
 	// test write
 	data := []byte(fileContent)
-	if err := s.writeStream(key, bytes.NewReader(data)); err != nil {
+	if _, err := s.writeStream(key, bytes.NewReader(data)); err != nil {
 		t.Error(err)
 	}
 

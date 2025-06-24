@@ -45,7 +45,7 @@ func makeServer(listenerAddr string, nodes ...string) *FileServer {
 	tcpTransport := p2p.NewTCPTransport(tcpTransportOpts)
 
 	fileServerOpts := FileServerOPts{
-		StoreageRoot:      "rivulet",
+		StoreageRoot:      listenerAddr + "_network",
 		PathTransformFunc: CASPathTransformFunc,
 		Transport:         tcpTransport,
 		BootstrapNodes:    nodes,

@@ -102,7 +102,7 @@ func (s *Store) Delete(key string) error {
 	return nil
 }
 
-func (s *Store) Write(key string, r io.Reader) error {
+func (s *Store) Write(key string, r io.Reader) (int64, error) {
 	return s.writeStream(key, r)
 }
 
@@ -124,27 +124,27 @@ func (s *Store) readStream(key string) (io.ReadCloser, error) {
 	return os.Open(pahtKey.FullPath(s.Root))
 }
 
-func (s *Store) writeStream(key string, r io.Reader) error {
+func (s *Store) writeStream(key string, r io.Reader) (int64, error) {
 	pathKey := s.PathTransformFunc(key)
 	// create the full path with all it's sub directories
 	if err := os.MkdirAll(s.Root+"/"+pathKey.Path, os.ModePerm); err != nil {
-		return err
+		return 0, err
 	}
 
 	pathAndFilename := pathKey.FullPath(s.Root)
 	// Open desired file
 	f, err := os.Create(pathAndFilename)
 	if err != nil {
-		return err
+		return 0, err
 	}
 	defer f.Close()
 
 	// Read write connection payload into file
 	n, err := io.Copy(f, r)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	log.Printf("written (%d) bytes to disk: %s\n", n, pathAndFilename)
-	return nil
+	return n, nil
 }
