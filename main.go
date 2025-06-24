@@ -1,7 +1,9 @@
 package main
 
 import (
+	"bytes"
 	"log"
+	"time"
 
 	"github.com/kurocifer/rivulet/p2p"
 )
@@ -15,9 +17,17 @@ func main() {
 		log.Fatal(s1.Start())
 	}()
 
-	if err := s2.Start(); err != nil {
-		log.Fatal(err)
-	}
+	time.Sleep(time.Second * 2)
+
+	go func() {
+		log.Fatal(s2.Start())
+	}()
+	time.Sleep(time.Second * 2)
+
+	data := bytes.NewReader([]byte("Help the Soul Soceity is under attack!!!"))
+	s2.StoreData("Squad 1", data)
+
+	select {}
 }
 
 // func onPeer(peer p2p.Peer) error {

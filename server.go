@@ -1,7 +1,10 @@
 package main
 
 import (
+	"bytes"
+	"encoding/gob"
 	"fmt"
+	"io"
 	"log"
 	"sync"
 
@@ -39,6 +42,50 @@ func NewFileServer(opts FileServerOPts) *FileServer {
 	}
 }
 
+type Message struct {
+	From    string
+	Payload any
+}
+
+type DataMessage struct {
+	Key  string
+	Data []byte
+}
+
+func (s *FileServer) broadcast(msg *Message) error {
+	fmt.Println("start boradcast ?")
+	peers := []io.Writer{}
+
+	for _, peer := range s.peers {
+		peers = append(peers, peer)
+	}
+
+	mw := io.MultiWriter(peers...)
+	return gob.NewEncoder(mw).Encode(msg)
+}
+
+func (s *FileServer) StoreData(key string, r io.Reader) error {
+	// store this file to the disk
+	// broadcast this file to all known peers which will in turn broadcast to all their
+	// known peers on the network. Is broadcasting a whole file okay ?
+
+	buf := new(bytes.Buffer)
+	tee := io.TeeReader(r, buf)
+	if err := s.store.Write(key, tee); err != nil {
+		return err
+	}
+
+	p := &DataMessage{
+		Key:  key,
+		Data: buf.Bytes(),
+	}
+
+	return s.broadcast(&Message{
+		From:    s.Transport.ListeAddr(),
+		Payload: p,
+	})
+}
+
 func (s *FileServer) Stop() {
 	close(s.quit)
 }
@@ -63,14 +110,28 @@ func (s *FileServer) loop() {
 	for {
 		select {
 		case msg := <-s.Transport.Consume():
-			fmt.Printf("%s sent %s", msg.From, string(msg.Payload))
+			var m Message
+			if err := gob.NewDecoder(bytes.NewReader(msg.Payload)).Decode(&m); err != nil {
+				log.Println(err)
+			}
 
+			if err := s.handleMessage(&m); err != nil {
+				log.Println(err)
+			}
 		case <-s.quit:
 			return
 		}
 	}
 }
 
+func (s *FileServer) handleMessage(msg *Message) error {
+	switch v := msg.Payload.(type) {
+	case *DataMessage:
+		fmt.Printf("recieved key -> %s : with data -> %s\n", v.Key, v.Data)
+	}
+
+	return nil
+}
 func (s *FileServer) bootstrapNetwork() {
 	for _, addr := range s.BootstrapNodes {
 		go func(addr string) {

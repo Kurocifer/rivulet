@@ -9,8 +9,8 @@ import (
 
 // TCPPeer represents the remote node over an established TCP connection
 type TCPPeer struct {
-	// comm is the underlying connection of the peer
-	conn net.Conn
+	// The underlying connection of the peer
+	net.Conn
 	// If we dial a peer and retrieve a connectin => outbound == true
 	// if we accept from a peer and retrieve a connection => outbound == false
 	outbound bool
@@ -18,24 +18,24 @@ type TCPPeer struct {
 
 func NewTCPPeer(conn net.Conn, outbound bool) *TCPPeer {
 	return &TCPPeer{
-		conn:     conn,
+		Conn:     conn,
 		outbound: outbound,
 	}
 }
 
-// Close implements the Peer interface.
-func (p *TCPPeer) Close() error {
-	return p.conn.Close()
-}
+// // Close implements the Peer interface.
+// func (p *TCPPeer) Close() error {
+// 	return p.conn.Close()
+// }
 
-// RemoteAddr implements the peer interfeace, and will return the remote
-// address of it's underlying connection.
-func (p *TCPPeer) RemoteAddr() net.Addr {
-	return p.conn.RemoteAddr()
-}
+// // RemoteAddr implements the peer interfeace, and will return the remote
+// // address of it's underlying connection.
+// func (p *TCPPeer) RemoteAddr() net.Addr {
+// 	return p.conn.RemoteAddr()
+// }
 
 func (p *TCPPeer) Send(b []byte) error {
-	_, err := p.conn.Write(b)
+	_, err := p.Conn.Write(b)
 	return err
 }
 
@@ -68,6 +68,10 @@ func (t *TCPTransport) Consume() <-chan RPC {
 // Close implements the transport interface. It closes the connection set up for transport
 func (t *TCPTransport) Close() error {
 	return t.listener.Close()
+}
+
+func (t *TCPTransport) ListeAddr() string {
+	return t.ListenAddr
 }
 
 // Dial implements the transport interface
@@ -149,7 +153,7 @@ func (t *TCPTransport) handleConnection(conn net.Conn, outbound bool) {
 		}
 
 		rpc.From = conn.RemoteAddr()
-
 		t.rpcch <- rpc
+		fmt.Printf("hey wrote it to the channel: %s", <-t.Consume())
 	}
 }
