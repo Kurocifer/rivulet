@@ -157,12 +157,16 @@ func (t *TCPTransport) handleConnection(conn net.Conn, outbound bool) {
 		}
 
 		rpc.From = conn.RemoteAddr().String()
+
+		if rpc.Stream {
+			peer.Wg.Add(1)
+			fmt.Printf("[%s] incoming stream, waiting...\n", conn.RemoteAddr())
+			peer.Wg.Wait()
+			fmt.Printf("[%s] stream closed, resuming read loop\n", conn.RemoteAddr())
+			continue
+		}
 		// wait for other peers (go routines) to read from the connection
 		// before proceeding to a next read cycle
-		peer.Wg.Add(1)
-		fmt.Println("waiting till streaming is done")
 		t.rpcch <- rpc
-		peer.Wg.Wait()
-		fmt.Println("stream done continuieing normal read loop")
 	}
 }
