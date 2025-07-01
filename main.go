@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"fmt"
 	"log"
 	"time"
 
@@ -24,8 +25,23 @@ func main() {
 	}()
 	time.Sleep(time.Second * 2)
 
-	data := bytes.NewReader([]byte("Help the Soul Soceity is under attack!!!"))
-	s2.StoreData("Squad 1", data)
+	for i := 0; i < 10; i++ {
+		data := bytes.NewReader([]byte("Help the Soul Soceity is under attack!!!"))
+		s2.Store(fmt.Sprintf("Squad 1_%d", i), data)
+		time.Sleep(time.Millisecond * 5)
+	}
+
+	// r, err := s2.Get("Squad 1")
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+
+	// b, err := io.ReadAll(r)
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+
+	// fmt.Println(string(b))
 
 	select {}
 }

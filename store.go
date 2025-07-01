@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"os"
 	"strings"
 )
@@ -144,7 +143,5 @@ func (s *Store) writeStream(key string, r io.Reader) (int64, error) {
 	if err != nil {
 		return 0, err
 	}
-
-	log.Printf("written (%d) bytes to disk: %s\n", n, pathAndFilename)
 	return n, nil
 }

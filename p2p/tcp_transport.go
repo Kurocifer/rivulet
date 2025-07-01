@@ -16,14 +16,14 @@ type TCPPeer struct {
 	// if we accept from a peer and retrieve a connection => outbound == false
 	outbound bool
 
-	Wg *sync.WaitGroup
+	wg *sync.WaitGroup
 }
 
 func NewTCPPeer(conn net.Conn, outbound bool) *TCPPeer {
 	return &TCPPeer{
 		Conn:     conn,
 		outbound: outbound,
-		Wg:       &sync.WaitGroup{},
+		wg:       &sync.WaitGroup{},
 	}
 }
 
@@ -37,6 +37,10 @@ func NewTCPPeer(conn net.Conn, outbound bool) *TCPPeer {
 // func (p *TCPPeer) RemoteAddr() net.Addr {
 // 	return p.conn.RemoteAddr()
 // }
+
+func (p *TCPPeer) CloseStream() {
+	p.wg.Done()
+}
 
 func (p *TCPPeer) Send(b []byte) error {
 	_, err := p.Conn.Write(b)
@@ -59,8 +63,14 @@ type TCPTransport struct {
 func NewTCPTransport(tcptransferOpts TCPTransportOpts) *TCPTransport {
 	return &TCPTransport{
 		TCPTransportOpts: tcptransferOpts,
-		rpcch:            make(chan RPC),
+		rpcch:            make(chan RPC, 1024),
 	}
+}
+
+// Addr implements the transport interface.
+// Returns the adress on which the transport is accepting connections.
+func (t *TCPTransport) Addr() string {
+	return t.ListenAddr
 }
 
 // Consume implements the transport interface, which will return a read-only channel
@@ -139,8 +149,8 @@ func (t *TCPTransport) handleConnection(conn net.Conn, outbound bool) {
 		}
 	}
 
-	rpc := RPC{}
 	for {
+		rpc := RPC{}
 		err = t.Decoder.Decode(conn, &rpc)
 		if err != nil {
 			// if strings.Contains(err.Error(), "use of closed network connection") {
@@ -159,9 +169,9 @@ func (t *TCPTransport) handleConnection(conn net.Conn, outbound bool) {
 		rpc.From = conn.RemoteAddr().String()
 
 		if rpc.Stream {
-			peer.Wg.Add(1)
+			peer.wg.Add(1)
 			fmt.Printf("[%s] incoming stream, waiting...\n", conn.RemoteAddr())
-			peer.Wg.Wait()
+			peer.wg.Wait()
 			fmt.Printf("[%s] stream closed, resuming read loop\n", conn.RemoteAddr())
 			continue
 		}
