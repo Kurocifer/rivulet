@@ -2,78 +2,71 @@ package main
 
 import (
 	"bytes"
-	"io"
+	"fmt"
+	"io/ioutil"
 	"testing"
-
-	"github.com/stretchr/testify/assert"
 )
-
-var (
-	key         = "SoulSoceity"
-	fileContent = "Zanka no Tachi"
-	opts        = StoreOpts{
-		PathTransformFunc: CASPathTransformFunc,
-	}
-)
-
-func teadDown(t *testing.T, s *Store) {
-	if err := s.Clear(); err != nil {
-		t.Error(err)
-	}
-}
 
 func TestPathTransformFunc(t *testing.T) {
-	expectedPath := "84647/b2184/badb9/331c9/ec324/5ec5f/aebce/3c140"
-	expectedFilename := "84647b2184badb9331c9ec3245ec5faebce3c140"
-
+	key := "momsbestpicture"
 	pathKey := CASPathTransformFunc(key)
-
-	if pathKey.Path != expectedPath {
-		t.Errorf("have %s want %s", pathKey.Path, expectedPath)
+	expectedFilename := "6804429f74181a63c50c3d81d733a12f14a353ff"
+	expectedPathName := "68044/29f74/181a6/3c50c/3d81d/733a1/2f14a/353ff"
+	if pathKey.PathName != expectedPathName {
+		t.Errorf("have %s want %s", pathKey.PathName, expectedPathName)
 	}
 
 	if pathKey.Filename != expectedFilename {
-		t.Errorf("test 1have %s want %s", pathKey.Filename, expectedFilename)
-	}
-}
-
-func TestStoreDelete(t *testing.T) {
-	s := NewStore(opts)
-	data := []byte(fileContent)
-
-	if _, err := s.writeStream(key, bytes.NewReader(data)); err != nil {
-		t.Error(err)
-	}
-
-	if err := s.Delete(key); err != nil {
-		t.Error(err)
+		t.Errorf("have %s want %s", pathKey.Filename, expectedFilename)
 	}
 }
 
 func TestStore(t *testing.T) {
-	s := NewStore(opts)
-	defer teadDown(t, s)
+	s := newStore()
+	id := generateID()
+	defer teardown(t, s)
 
-	// test write
-	data := []byte(fileContent)
-	if _, err := s.writeStream(key, bytes.NewReader(data)); err != nil {
+	for i := 0; i < 50; i++ {
+		key := fmt.Sprintf("foo_%d", i)
+		data := []byte("some jpg bytes")
+
+		if _, err := s.writeStream(id, key, bytes.NewReader(data)); err != nil {
+			t.Error(err)
+		}
+
+		if ok := s.Has(id, key); !ok {
+			t.Errorf("expected to have key %s", key)
+		}
+
+		_, r, err := s.Read(id, key)
+		if err != nil {
+			t.Error(err)
+		}
+
+		b, _ := ioutil.ReadAll(r)
+		if string(b) != string(data) {
+			t.Errorf("want %s have %s", data, b)
+		}
+
+		if err := s.Delete(id, key); err != nil {
+			t.Error(err)
+		}
+
+		if ok := s.Has(id, key); ok {
+			t.Errorf("expected to NOT have key %s", key)
+		}
+	}
+}
+
+func newStore() *Store {
+	opts := StoreOpts{
+		PathTransformFunc: CASPathTransformFunc,
+	}
+	return NewStore(opts)
+}
+
+func teardown(t *testing.T, s *Store) {
+	if err := s.Clear(); err != nil {
 		t.Error(err)
 	}
-
-	if ok := s.Has(key); !ok {
-		t.Errorf("expected to have key %s", key)
-	}
-
-	// test read
-	_, r, err := s.Read(key)
-	if err != nil {
-		t.Error(err)
-	}
-
-	b, err := io.ReadAll(r)
-	if err != nil {
-		t.Error(err)
-	}
-
-	assert.Equal(t, data, b)
 }

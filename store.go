@@ -6,55 +6,62 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"strings"
 )
 
-const defaultRootDirectory = "rivulet"
+const defaultRootFolderName = "rivulet"
 
-type PathTransformFunc func(string) PathKey
-
-type PathKey struct {
-	Path     string
-	Filename string
-}
-
-func (p PathKey) FullPath(rootDir string) string {
-	return fmt.Sprintf("%s/%s/%s", rootDir, p.Path, p.Filename)
-}
-
-var DefaultPathTransformFunc = func(key string) PathKey {
-	return PathKey{
-		Path:     key,
-		Filename: key,
-	}
-}
-
-// CASPathTransformFunc takes a key descriptor for a file,
-// and returns it's path on disk. (I should probably come up with a better name)
 func CASPathTransformFunc(key string) PathKey {
 	hash := sha1.Sum([]byte(key))
 	hashStr := hex.EncodeToString(hash[:])
 
-	blockSize := 5                       // determines the level of embedding of the path (the number of subdirectores)
-	sliceLen := len(hashStr) / blockSize // So a hashStr len of 10, will yeild 2 sub directores
-	path := make([]string, sliceLen)
+	blocksize := 5
+	sliceLen := len(hashStr) / blocksize
+	paths := make([]string, sliceLen)
 
-	for i := range sliceLen {
-		start, end := i*blockSize, (i*blockSize)+blockSize
-		path[i] = hashStr[start:end]
+	for i := 0; i < sliceLen; i++ {
+		from, to := i*blocksize, (i*blocksize)+blocksize
+		paths[i] = hashStr[from:to]
 	}
 
 	return PathKey{
-		Path:     strings.Join(path, "/"),
+		PathName: strings.Join(paths, "/"),
 		Filename: hashStr,
 	}
 }
 
+type PathTransformFunc func(string) PathKey
+
+type PathKey struct {
+	PathName string
+	Filename string
+}
+
+func (p PathKey) FirstPathName() string {
+	paths := strings.Split(p.PathName, "/")
+	if len(paths) == 0 {
+		return ""
+	}
+	return paths[0]
+}
+
+func (p PathKey) FullPath() string {
+	return fmt.Sprintf("%s/%s", p.PathName, p.Filename)
+}
+
 type StoreOpts struct {
-	// Root is the root directory of the system
+	// Root is the root folder name, which holds the folders of the system.
 	Root              string
-	PathTransformFunc PathTransformFunc // Convert the key into the file path
+	PathTransformFunc PathTransformFunc
+}
+
+var DefaultPathTransformFunc = func(key string) PathKey {
+	return PathKey{
+		PathName: key,
+		Filename: key,
+	}
 }
 
 type Store struct {
@@ -65,54 +72,81 @@ func NewStore(opts StoreOpts) *Store {
 	if opts.PathTransformFunc == nil {
 		opts.PathTransformFunc = DefaultPathTransformFunc
 	}
-
 	if len(opts.Root) == 0 {
-		opts.Root = defaultRootDirectory
+		opts.Root = defaultRootFolderName
 	}
+
 	return &Store{
 		StoreOpts: opts,
 	}
+}
+
+func (s *Store) Has(id string, key string) bool {
+	pathKey := s.PathTransformFunc(key)
+	fullPathWithRoot := fmt.Sprintf("%s/%s/%s", s.Root, id, pathKey.FullPath())
+
+	_, err := os.Stat(fullPathWithRoot)
+	return !errors.Is(err, os.ErrNotExist)
 }
 
 func (s *Store) Clear() error {
 	return os.RemoveAll(s.Root)
 }
 
-func (s *Store) Has(key string) bool {
-	PathKey := s.PathTransformFunc(key)
-
-	_, err := os.Stat(PathKey.FullPath(s.Root))
-	return !errors.Is(err, os.ErrNotExist)
-}
-
-func (s *Store) Delete(key string) error {
+func (s *Store) Delete(id string, key string) error {
 	pathKey := s.PathTransformFunc(key)
 
-	topDir := strings.Split(pathKey.FullPath(s.Root), "/")[:2]
-	if len(topDir) == 0 {
-		return fmt.Errorf("top directory doesn't exist (I actually don't know what to say in this error)")
+	defer func() {
+		log.Printf("deleted [%s] from disk", pathKey.Filename)
+	}()
+
+	firstPathNameWithRoot := fmt.Sprintf("%s/%s/%s", s.Root, id, pathKey.FirstPathName())
+
+	return os.RemoveAll(firstPathNameWithRoot)
+}
+
+func (s *Store) Write(id string, key string, r io.Reader) (int64, error) {
+	return s.writeStream(id, key, r)
+}
+
+func (s *Store) WriteDecrypt(encKey []byte, id string, key string, r io.Reader) (int64, error) {
+	f, err := s.openFileForWriting(id, key)
+	if err != nil {
+		return 0, err
 	}
-	if err := os.RemoveAll(strings.Join(topDir, "/")); err != nil {
-		return err
+	n, err := copyDecrypt(encKey, r, f)
+	return int64(n), err
+}
+
+func (s *Store) openFileForWriting(id string, key string) (*os.File, error) {
+	pathKey := s.PathTransformFunc(key)
+	pathNameWithRoot := fmt.Sprintf("%s/%s/%s", s.Root, id, pathKey.PathName)
+	if err := os.MkdirAll(pathNameWithRoot, os.ModePerm); err != nil {
+		return nil, err
 	}
 
-	fmt.Printf("deleted [%s] from disk\n", pathKey.Filename)
-	return nil
+	fullPathWithRoot := fmt.Sprintf("%s/%s/%s", s.Root, id, pathKey.FullPath())
+
+	return os.Create(fullPathWithRoot)
 }
 
-func (s *Store) Write(key string, r io.Reader) (int64, error) {
-	return s.writeStream(key, r)
+func (s *Store) writeStream(id string, key string, r io.Reader) (int64, error) {
+	f, err := s.openFileForWriting(id, key)
+	if err != nil {
+		return 0, err
+	}
+	return io.Copy(f, r)
 }
 
-func (s Store) Read(key string) (int64, io.Reader, error) {
-	return s.readStream(key)
+func (s *Store) Read(id string, key string) (int64, io.Reader, error) {
+	return s.readStream(id, key)
 }
 
-func (s *Store) readStream(key string) (int64, io.ReadCloser, error) {
-	pahtKey := s.PathTransformFunc(key)
-	// return os.Open(pahtKey.FullPath(s.Root))
+func (s *Store) readStream(id string, key string) (int64, io.ReadCloser, error) {
+	pathKey := s.PathTransformFunc(key)
+	fullPathWithRoot := fmt.Sprintf("%s/%s/%s", s.Root, id, pathKey.FullPath())
 
-	file, err := os.Open(pahtKey.FullPath(s.Root))
+	file, err := os.Open(fullPathWithRoot)
 	if err != nil {
 		return 0, nil, err
 	}
@@ -123,27 +157,4 @@ func (s *Store) readStream(key string) (int64, io.ReadCloser, error) {
 	}
 
 	return fi.Size(), file, nil
-}
-
-func (s *Store) writeStream(key string, r io.Reader) (int64, error) {
-	pathKey := s.PathTransformFunc(key)
-	// create the full path with all it's sub directories
-	if err := os.MkdirAll(s.Root+"/"+pathKey.Path, os.ModePerm); err != nil {
-		return 0, err
-	}
-
-	pathAndFilename := pathKey.FullPath(s.Root)
-	// Open desired file
-	f, err := os.Create(pathAndFilename)
-	if err != nil {
-		return 0, err
-	}
-	defer f.Close()
-
-	// Read write connection payload into file
-	n, err := io.Copy(f, r)
-	if err != nil {
-		return 0, err
-	}
-	return n, nil
 }
