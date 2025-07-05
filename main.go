@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"log"
@@ -9,37 +10,77 @@ import (
 	"github.com/kurocifer/rivulet/p2p"
 )
 
+var espadas = []string{
+	"Stark",
+	"Baragan",
+	"Haribel",
+	"Ulquirra",
+	"Nnoitra",
+	"Grimmjow",
+	"Zommari",
+	"Szayel",
+	"Aaroniero",
+	"Yammy",
+}
+
+func makeServer(listenAddr string, nodes ...string) *FileServer {
+	tcptransportOpts := p2p.TCPTransportOpts{
+		ListenAddr:    listenAddr,
+		HandShakeFunc: p2p.DefaultHandSake,
+		Decoder:       p2p.DefaultDecoder{},
+	}
+	tcpTransport := p2p.NewTCPTransport(tcptransportOpts)
+
+	fileServerOpts := FileServerOpts{
+		EncKey:            newEncryptionKey(),
+		StorageRoot:       listenAddr + "_network",
+		PathTransformFunc: CASPathTransformFunc,
+		Transport:         tcpTransport,
+		BootstrapNodes:    nodes,
+	}
+
+	s := NewFileServer(fileServerOpts)
+
+	tcpTransport.OnPeer = s.OnPeer
+
+	return s
+}
+
 func main() {
+	s1 := makeServer(":3000", "")
+	s2 := makeServer(":7000", "")
+	s3 := makeServer(":5000", ":3000", ":7000")
 
-	s1 := makeServer(":3000")
-	s2 := makeServer(":4000", ":3000")
+	go func() { log.Fatal(s1.Start()) }()
+	time.Sleep(500 * time.Millisecond)
+	go func() { log.Fatal(s2.Start()) }()
 
-	go func() {
-		log.Fatal(s1.Start())
-	}()
+	time.Sleep(2 * time.Second)
 
-	time.Sleep(time.Second * 2)
+	go s3.Start()
+	time.Sleep(2 * time.Second)
 
-	go func() {
-		log.Fatal(s2.Start())
-	}()
-	time.Sleep(time.Second * 2)
+	for i, name := range espadas {
+		key := fmt.Sprintf("%s_Espada_%d.bleach", name, i)
+		data := bytes.NewReader([]byte("Yare Yare go is really awesome"))
+		s3.Store(key, data)
 
-	// data := bytes.NewReader([]byte("Yeah we know Ulquiorra is him!"))
-	// s2.Store("Espada Facts", data)
-	// time.Sleep(time.Millisecond * 5)
+		if err := s3.store.Delete(s3.ID, key); err != nil {
+			log.Fatal(err)
+		}
 
-	r, err := s2.Get("Espada Facts")
-	if err != nil {
-		log.Fatal(err)
+		r, err := s3.Get(key)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		b, err := io.ReadAll(r)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		fmt.Println(string(b))
 	}
-
-	b, err := io.ReadAll(r)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	fmt.Println(string(b))
 }
 
 // func onPeer(peer p2p.Peer) error {
@@ -47,25 +88,3 @@ func main() {
 // 	peer.Close()
 // 	return nil
 // }
-
-func makeServer(listenerAddr string, nodes ...string) *FileServer {
-	tcpTransportOpts := p2p.TCPTransportOpts{
-		ListenAddr:    listenerAddr,
-		Decoder:       p2p.DefaultDecoder{},
-		HandShakeFunc: p2p.DefaultHandSake,
-	}
-	tcpTransport := p2p.NewTCPTransport(tcpTransportOpts)
-
-	fileServerOpts := FileServerOPts{
-		StoreageRoot:      listenerAddr + "_network",
-		PathTransformFunc: CASPathTransformFunc,
-		Transport:         tcpTransport,
-		BootstrapNodes:    nodes,
-	}
-
-	server := NewFileServer(fileServerOpts)
-
-	tcpTransport.OnPeer = server.onPeer
-
-	return server
-}
