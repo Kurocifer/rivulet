@@ -10,7 +10,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/kurocifer/rivulet/p2p"
+	"github.com/kurocifer/rivulet/rivulet-base/p2p"
 )
 
 type FileServerOpts struct {

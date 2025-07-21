@@ -1,8 +1,8 @@
 build:
-	@go build -o bin/rvt
+	@cd rivulet-base && go build -o bin/rvt
 
-run: build
+run-base: build
 	@./bin/rvt
 
-test:
-	@go test ./... -v
+test-base:
+	@cd rivulet-base && go test ./... -v

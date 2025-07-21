@@ -7,7 +7,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/kurocifer/rivulet/p2p"
+	"github.com/kurocifer/rivulet/rivulet-base/p2p"
 )
 
 var espadas = []string{
