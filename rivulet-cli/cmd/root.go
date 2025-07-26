@@ -1,10 +1,15 @@
 package cmd
 
 import (
+	"fmt"
 	"os"
 
+	"github.com/kurocifer/rivulet/rivulet-cli/pkg/daemon"
+	"github.com/kurocifer/rivulet/rivulet-cli/pkg/utils"
 	"github.com/spf13/cobra"
 )
+
+var action string
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
@@ -12,7 +17,40 @@ var rootCmd = &cobra.Command{
 	Short: "A decentralized and distributed file storage system",
 	// Uncomment the following line if your bare application
 	// has an action associated with it:
-	// Run: func(cmd *cobra.Command, args []string) { },
+	Run: func(cmd *cobra.Command, args []string) {
+		if len(args) == 0 && !cmd.Flags().Changed("action") {
+			fmt.Println("status")
+			action = "status"
+		} else {
+			println(action)
+		}
+
+		utils.CreateWorkDir()
+
+		err := rootCmdEx()
+		if err != nil {
+			fmt.Println(err)
+			cmd.HelpFunc()(cmd, args)
+		}
+	},
+}
+
+func rootCmdEx() error {
+	switch action {
+	case "start":
+		daemon.StartDaemon()
+
+	case "stop":
+		daemon.StopDaemon()
+
+	case "status":
+		daemon.GetDaemonStatus()
+
+	default:
+		return fmt.Errorf("unknown action '%s'", action)
+	}
+
+	return nil
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.
@@ -25,5 +63,5 @@ func Execute() {
 }
 
 func init() {
-	rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	rootCmd.Flags().StringVarP(&action, "action", "a", "", "Specify what you want to do with the daemon: 'start', 'stop', 'status'")
 }

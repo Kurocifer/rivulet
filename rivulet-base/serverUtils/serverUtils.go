@@ -1,4 +1,4 @@
-package serverutils
+package serverUtils
 
 import (
 	crypt "github.com/kurocifer/rivulet/rivulet-base/crypto"
