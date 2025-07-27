@@ -7,7 +7,7 @@ import (
 	"log"
 	"time"
 
-	serverUtils "github.com/kurocifer/rivulet/rivulet-base/serverUtils"
+	"github.com/kurocifer/rivulet/utils"
 )
 
 var espadas = []string{
@@ -48,8 +48,8 @@ var espadas = []string{
 
 func main() {
 	// s1 := serverUtils.MakeServer(":3000", "")
-	s2 := serverUtils.MakeServer(":7000", "")
-	s3 := serverUtils.MakeServer(":5000", ":3000", ":7000")
+	s2 := utils.MakeServer(":7000", "")
+	s3 := utils.MakeServer(":5000", ":3000", ":7000")
 
 	// go func() { log.Fatal(s1.Start()) }()
 	// time.Sleep(500 * time.Millisecond)

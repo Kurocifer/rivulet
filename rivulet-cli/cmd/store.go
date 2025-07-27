@@ -8,7 +8,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/kurocifer/rivulet/rivulet-base/serverUtils"
+	"github.com/kurocifer/rivulet/utils"
 	"github.com/spf13/cobra"
 )
 
@@ -31,7 +31,7 @@ var storeCmd = &cobra.Command{
 }
 
 func storeCmdEx(r io.Reader) error {
-	server := serverUtils.MakeServer(addr, nodes...)
+	server := utils.MakeServer(addr, nodes...)
 	go server.Start()
 	time.Sleep(2 * time.Second)
 

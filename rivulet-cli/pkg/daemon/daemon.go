@@ -9,8 +9,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/kurocifer/rivulet/rivulet-base/serverUtils"
-	"github.com/kurocifer/rivulet/rivulet-cli/pkg/utils"
+	"github.com/kurocifer/rivulet/utils"
 	"github.com/sevlyar/go-daemon"
 )
 
@@ -24,10 +23,10 @@ func StartDaemon() {
 	workDir := utils.GetWorkDir()
 
 	cntxt := &daemon.Context{
-		PidFileName: workDir + "/" + pidFile,
+		PidFileName: workDir + "/.daemon/" + pidFile,
 		PidFilePerm: 0644, // PID file permissions (read/write for owner, read for others)
 
-		LogFileName: workDir + "/" + logFile,
+		LogFileName: workDir + "/.daemon/" + logFile,
 		LogFilePerm: 0640, // Log file permissions (read/write for owner, read for group)
 
 		WorkDir: workDir,
@@ -56,7 +55,7 @@ func StartDaemon() {
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, syscall.SIGTERM, syscall.SIGINT)
 
-	server := serverUtils.MakeServer(":3000")
+	server := utils.MakeServer(":3000")
 	server.Start()
 
 	s := <-sig
@@ -67,7 +66,7 @@ func StartDaemon() {
 
 // StopDaemon, ends the server daemon
 func StopDaemon() {
-	pidFileLoc := utils.GetWorkDir() + "/" + pidFile
+	pidFileLoc := utils.GetWorkDir() + "/.daemon/" + pidFile
 	// Get PID from file
 	pidBytes, err := os.ReadFile(pidFileLoc)
 	if err != nil {
@@ -127,7 +126,7 @@ func StopDaemon() {
 // GetDaemonStatus, checks if the rivulet daemon is still running
 func GetDaemonStatus() {
 	cntxt := daemon.Context{
-		PidFileName: utils.GetWorkDir() + "/" + pidFile,
+		PidFileName: utils.GetWorkDir() + "/.daemon/" + pidFile,
 	}
 
 	pid, err := cntxt.Search()

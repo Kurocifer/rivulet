@@ -5,7 +5,7 @@ import (
 	"os"
 
 	"github.com/kurocifer/rivulet/rivulet-cli/pkg/daemon"
-	"github.com/kurocifer/rivulet/rivulet-cli/pkg/utils"
+	"github.com/kurocifer/rivulet/utils"
 	"github.com/spf13/cobra"
 )
 
