@@ -7,7 +7,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/kurocifer/rivulet/rivulet-base/p2p"
+	"github.com/kurocifer/rivulet/utils"
 )
 
 var espadas = []string{
@@ -23,36 +23,36 @@ var espadas = []string{
 	"Yammy",
 }
 
-func makeServer(listenAddr string, nodes ...string) *FileServer {
-	tcptransportOpts := p2p.TCPTransportOpts{
-		ListenAddr:    listenAddr,
-		HandShakeFunc: p2p.DefaultHandSake,
-		Decoder:       p2p.DefaultDecoder{},
-	}
-	tcpTransport := p2p.NewTCPTransport(tcptransportOpts)
+// func makeServer(listenAddr string, nodes ...string) *FileServer {
+// 	tcptransportOpts := p2p.TCPTransportOpts{
+// 		ListenAddr:    listenAddr,
+// 		HandShakeFunc: p2p.DefaultHandSake,
+// 		Decoder:       p2p.DefaultDecoder{},
+// 	}
+// 	tcpTransport := p2p.NewTCPTransport(tcptransportOpts)
 
-	fileServerOpts := FileServerOpts{
-		EncKey:            newEncryptionKey(),
-		StorageRoot:       listenAddr + "_network",
-		PathTransformFunc: CASPathTransformFunc,
-		Transport:         tcpTransport,
-		BootstrapNodes:    nodes,
-	}
+// 	fileServerOpts := FileServerOpts{
+// 		EncKey:            newEncryptionKey(),
+// 		StorageRoot:       listenAddr + "_network",
+// 		PathTransformFunc: CASPathTransformFunc,
+// 		Transport:         tcpTransport,
+// 		BootstrapNodes:    nodes,
+// 	}
 
-	s := NewFileServer(fileServerOpts)
+// 	s := NewFileServer(fileServerOpts)
 
-	tcpTransport.OnPeer = s.OnPeer
+// 	tcpTransport.OnPeer = s.OnPeer
 
-	return s
-}
+// 	return s
+// }
 
 func main() {
-	s1 := makeServer(":3000", "")
-	s2 := makeServer(":7000", "")
-	s3 := makeServer(":5000", ":3000", ":7000")
+	// s1 := serverUtils.MakeServer(":3000", "")
+	s2 := utils.MakeServer(":7000", "")
+	s3 := utils.MakeServer(":5000", ":3000", ":7000")
 
-	go func() { log.Fatal(s1.Start()) }()
-	time.Sleep(500 * time.Millisecond)
+	// go func() { log.Fatal(s1.Start()) }()
+	// time.Sleep(500 * time.Millisecond)
 	go func() { log.Fatal(s2.Start()) }()
 
 	time.Sleep(2 * time.Second)
@@ -65,7 +65,7 @@ func main() {
 		data := bytes.NewReader([]byte("Yare Yare go is really awesome"))
 		s3.Store(key, data)
 
-		if err := s3.store.Delete(s3.ID, key); err != nil {
+		if err := s3.Sstore.Delete(s3.ID, key); err != nil {
 			log.Fatal(err)
 		}
 

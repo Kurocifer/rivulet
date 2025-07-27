@@ -1,10 +1,12 @@
-package main
+package store
 
 import (
 	"bytes"
 	"fmt"
 	"io"
 	"testing"
+
+	crypt "github.com/kurocifer/rivulet/rivulet-base/crypto"
 )
 
 func TestPathTransformFunc(t *testing.T) {
@@ -23,7 +25,7 @@ func TestPathTransformFunc(t *testing.T) {
 
 func TestStore(t *testing.T) {
 	s := newStore()
-	id := generateID()
+	id := crypt.GenerateID()
 	defer teardown(t, s)
 
 	for i := 0; i < 50; i++ {

@@ -1,4 +1,4 @@
-package main
+package store
 
 import (
 	"crypto/sha1"
@@ -9,6 +9,8 @@ import (
 	"log"
 	"os"
 	"strings"
+
+	crypt "github.com/kurocifer/rivulet/rivulet-base/crypto"
 )
 
 const defaultRootFolderName = "rivulet"
@@ -114,7 +116,7 @@ func (s *Store) WriteDecrypt(encKey []byte, id string, key string, r io.Reader) 
 	if err != nil {
 		return 0, err
 	}
-	n, err := copyDecrypt(encKey, r, f)
+	n, err := crypt.CopyDecrypt(encKey, r, f)
 	return int64(n), err
 }
 

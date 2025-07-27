@@ -1,4 +1,4 @@
-package main
+package server
 
 import (
 	"bytes"
@@ -10,14 +10,16 @@ import (
 	"sync"
 	"time"
 
+	crypt "github.com/kurocifer/rivulet/rivulet-base/crypto"
 	"github.com/kurocifer/rivulet/rivulet-base/p2p"
+	"github.com/kurocifer/rivulet/rivulet-base/store"
 )
 
 type FileServerOpts struct {
 	ID                string
 	EncKey            []byte
 	StorageRoot       string
-	PathTransformFunc PathTransformFunc
+	PathTransformFunc store.PathTransformFunc
 	Transport         p2p.Transport
 	BootstrapNodes    []string
 }
@@ -28,23 +30,23 @@ type FileServer struct {
 	peerLock sync.Mutex
 	peers    map[string]p2p.Peer
 
-	store  *Store
+	Sstore *store.Store
 	quitch chan struct{}
 }
 
 func NewFileServer(opts FileServerOpts) *FileServer {
-	storeOpts := StoreOpts{
+	storeOpts := store.StoreOpts{
 		Root:              opts.StorageRoot,
 		PathTransformFunc: opts.PathTransformFunc,
 	}
 
 	if len(opts.ID) == 0 {
-		opts.ID = generateID()
+		opts.ID = crypt.GenerateID()
 	}
 
 	return &FileServer{
 		FileServerOpts: opts,
-		store:          NewStore(storeOpts),
+		Sstore:         store.NewStore(storeOpts),
 		quitch:         make(chan struct{}),
 		peers:          make(map[string]p2p.Peer),
 	}
@@ -82,9 +84,9 @@ type MessageGetFile struct {
 }
 
 func (s *FileServer) Get(key string) (io.Reader, error) {
-	if s.store.Has(s.ID, key) {
+	if s.Sstore.Has(s.ID, key) {
 		fmt.Printf("[%s] serving file (%s) from disk\n", s.Transport.Addr(), key)
-		_, r, err := s.store.Read(s.ID, key)
+		_, r, err := s.Sstore.Read(s.ID, key)
 		return r, err
 	}
 
@@ -93,7 +95,7 @@ func (s *FileServer) Get(key string) (io.Reader, error) {
 	msg := Message{
 		Payload: MessageGetFile{
 			ID:  s.ID,
-			Key: hashKey(key),
+			Key: crypt.HashKey(key),
 		},
 	}
 
@@ -109,7 +111,7 @@ func (s *FileServer) Get(key string) (io.Reader, error) {
 		var fileSize int64
 		binary.Read(peer, binary.LittleEndian, &fileSize)
 
-		n, err := s.store.WriteDecrypt(s.EncKey, s.ID, key, io.LimitReader(peer, fileSize))
+		n, err := s.Sstore.WriteDecrypt(s.EncKey, s.ID, key, io.LimitReader(peer, fileSize))
 		if err != nil {
 			return nil, err
 		}
@@ -119,7 +121,7 @@ func (s *FileServer) Get(key string) (io.Reader, error) {
 		peer.CloseStream()
 	}
 
-	_, r, err := s.store.Read(s.ID, key)
+	_, r, err := s.Sstore.Read(s.ID, key)
 	return r, err
 }
 
@@ -129,7 +131,7 @@ func (s *FileServer) Store(key string, r io.Reader) error {
 		tee        = io.TeeReader(r, fileBuffer)
 	)
 
-	size, err := s.store.Write(s.ID, key, tee)
+	size, err := s.Sstore.Write(s.ID, key, tee)
 	if err != nil {
 		return err
 	}
@@ -137,7 +139,7 @@ func (s *FileServer) Store(key string, r io.Reader) error {
 	msg := Message{
 		Payload: MessageStoreFile{
 			ID:   s.ID,
-			Key:  hashKey(key),
+			Key:  crypt.HashKey(key),
 			Size: size + 16,
 		},
 	}
@@ -154,7 +156,7 @@ func (s *FileServer) Store(key string, r io.Reader) error {
 	}
 	mw := io.MultiWriter(peers...)
 	mw.Write([]byte{p2p.IncomingStream})
-	n, err := copyEncrypt(s.EncKey, fileBuffer, mw)
+	n, err := crypt.CopyEncrypt(s.EncKey, fileBuffer, mw)
 	if err != nil {
 		return err
 	}
@@ -214,13 +216,13 @@ func (s *FileServer) handleMessage(from string, msg *Message) error {
 }
 
 func (s *FileServer) handleMessageGetFile(from string, msg MessageGetFile) error {
-	if !s.store.Has(msg.ID, msg.Key) {
+	if !s.Sstore.Has(msg.ID, msg.Key) {
 		return fmt.Errorf("[%s] need to serve file (%s) but it does not exist on disk", s.Transport.Addr(), msg.Key)
 	}
 
 	fmt.Printf("[%s] serving file (%s) over the network\n", s.Transport.Addr(), msg.Key)
 
-	fileSize, r, err := s.store.Read(msg.ID, msg.Key)
+	fileSize, r, err := s.Sstore.Read(msg.ID, msg.Key)
 	if err != nil {
 		return err
 	}
@@ -257,7 +259,7 @@ func (s *FileServer) handleMessageStoreFile(from string, msg MessageStoreFile) e
 		return fmt.Errorf("peer (%s) could not be found in the peer list", from)
 	}
 
-	n, err := s.store.Write(msg.ID, msg.Key, io.LimitReader(peer, msg.Size))
+	n, err := s.Sstore.Write(msg.ID, msg.Key, io.LimitReader(peer, msg.Size))
 	if err != nil {
 		return err
 	}
