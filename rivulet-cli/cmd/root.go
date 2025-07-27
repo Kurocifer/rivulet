@@ -19,8 +19,8 @@ var rootCmd = &cobra.Command{
 	// has an action associated with it:
 	Run: func(cmd *cobra.Command, args []string) {
 		if len(args) == 0 && !cmd.Flags().Changed("action") {
-			fmt.Println("status")
 			action = "status"
+			defer cmd.HelpFunc()(cmd, args)
 		} else {
 			println(action)
 		}

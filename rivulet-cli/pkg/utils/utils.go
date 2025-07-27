@@ -4,6 +4,7 @@ import (
 	"os"
 )
 
+// GetWorkDir, returns the working directory of the rivulet daemon
 func GetWorkDir() string {
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
@@ -13,6 +14,7 @@ func GetWorkDir() string {
 	return homeDir + "/rivulet/.daemon"
 }
 
+// CreateWorkDir, creates teh rivulet working directory
 func CreateWorkDir() error {
 	dir := GetWorkDir()
 
