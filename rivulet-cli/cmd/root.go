@@ -18,9 +18,8 @@ var rootCmd = &cobra.Command{
 	// Uncomment the following line if your bare application
 	// has an action associated with it:
 	Run: func(cmd *cobra.Command, args []string) {
-		if len(args) == 0 && !cmd.Flags().Changed("action") {
-			action = "status"
-			defer cmd.HelpFunc()(cmd, args)
+		if len(args) == 0 && !cmd.Flags().Changed("daemon") {
+			cmd.HelpFunc()(cmd, args)
 		} else {
 			println(action)
 		}
@@ -63,5 +62,5 @@ func Execute() {
 }
 
 func init() {
-	rootCmd.Flags().StringVarP(&action, "action", "a", "", "Specify what you want to do with the daemon: 'start', 'stop', 'status'")
+	rootCmd.Flags().StringVarP(&action, "daemon", "d", "status", "Specify what you want to do with the daemon: 'start', 'stop', 'status'")
 }

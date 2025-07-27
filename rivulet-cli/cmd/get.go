@@ -1,40 +1,30 @@
-/*
-Copyright © 2025 NAME HERE <EMAIL ADDRESS>
-
-*/
 package cmd
 
 import (
-	"fmt"
+	"time"
 
+	"github.com/kurocifer/rivulet/utils"
 	"github.com/spf13/cobra"
 )
 
 // getCmd represents the get command
 var getCmd = &cobra.Command{
 	Use:   "get",
-	Short: "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
-
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
-	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("get called")
+	Short: "Gets the file specified by key from local storage, if it's not found, it fetches it from nodes",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		server := utils.MakeServer(addr, nodes...)
+		go server.Start()
+		time.Sleep(2 * time.Second)
+		_, err := server.Get(key)
+		return err
 	},
 }
 
 func init() {
 	rootCmd.AddCommand(getCmd)
 
-	// Here you will define your flags and configuration settings.
-
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// getCmd.PersistentFlags().String("foo", "", "A help for foo")
-
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// getCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	// I know I know I'm repeating this and all...
+	getCmd.Flags().StringVarP(&addr, "port", "p", ":8080", "Port on which server should run")
+	getCmd.Flags().StringSliceVarP(&nodes, "nodes", "n", []string{}, "Address of nodes to connect to")
+	getCmd.Flags().StringVarP(&key, "key", "k", "", "File key (will be used to identify the file)")
 }
